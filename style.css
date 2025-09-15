@@ -1,0 +1,332 @@
+/* CSS Utama */
+:root {
+    --primary-color: #6c757d;
+    --secondary-color: #888;
+    --background-color: #f8f9fa;
+    --card-background: #ffffff;
+    --text-color: #343a40;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --safe-color: #28a745;
+}
+
+/* Gaya Mode Malam (Semi-hitam) */
+body.dark-mode {
+    --background-color: #1a1a1a;
+    --card-background: #2b2b2b;
+    --text-color: #f8f9fa;
+    --secondary-color: #ced4da;
+    --primary-color: #adb5bd;
+    
+    background-color: #1a1a1a;
+    background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+body {
+    font-family: 'Montserrat', sans-serif;
+    background-color: var(--background-color);
+    margin: 0;
+    padding: 0;
+    color: var(--text-color);
+    transition: all 0.5s ease-in-out;
+    overflow-x: hidden;
+}
+
+/* Gaya Navbar */
+.navbar {
+    background-color: var(--card-background);
+    padding: 15px 30px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    transition: background-color 0.5s ease;
+}
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5em;
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+.navbar-nav a {
+    color: var(--secondary-color);
+    text-decoration: none;
+    margin-left: 20px;
+    font-weight: 600;
+    transition: color 0.3s ease;
+    cursor: pointer;
+}
+.navbar-nav a:hover {
+    color: var(--primary-color);
+}
+body.dark-mode .navbar {
+    background-color: var(--card-background);
+}
+body.dark-mode .navbar-brand, body.dark-mode .navbar-nav a {
+    color: var(--text-color);
+}
+body.dark-mode .navbar-nav a:hover {
+    color: var(--primary-color);
+}
+
+/* Konten Utama */
+.content-wrapper {
+    padding: 20px;
+}
+.content {
+    display: none;
+}
+.content.active {
+    display: block;
+}
+
+/* Animasi fade-in untuk container */
+.container {
+    max-width: 1200px;
+    margin: auto;
+    display: grid;
+    gap: 20px;
+    grid-template-columns: 1fr;
+    animation: fadeIn 1s ease-in-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.main-content {
+    display: grid; /* Mengubah dari flex ke grid */
+    grid-template-columns: 1fr;
+    gap: 20px;
+}
+@media (min-width: 768px) {
+    .main-content {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .main-content .full-width {
+        grid-column: 1 / -1; /* Mengambil seluruh lebar */
+    }
+}
+.card {
+    background-color: var(--card-background);
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.5s ease;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* Animasi untuk judul */
+h1, h2 {
+    margin: 0 0 10px 0;
+    font-weight: 700;
+    animation: text-reveal 1s ease-in-out 0.5s forwards;
+    opacity: 0;
+}
+h1 {
+    font-size: 2.5em;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+h1 i {
+    margin-right: 15px;
+    color: var(--primary-color);
+}
+@keyframes text-reveal {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* Sound Wave Canvas */
+.sound-wave-container {
+    position: relative;
+    background: linear-gradient(45deg, #495057, #6c757d);
+    border-radius: 15px;
+    overflow: hidden;
+    margin-top: 20px;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--primary-color);
+    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.5);
+    transition: all 0.5s ease;
+}
+#soundWaveCanvas {
+    display: block;
+}
+body.dark-mode .sound-wave-container {
+    background: linear-gradient(45deg, #383838, #505050);
+    border: 2px solid var(--primary-color);
+    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8);
+}
+
+/* Peringatan Gaya Komik */
+.speech-bubble {
+    font-family: 'Bangers', cursive;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--danger-color);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    white-space: nowrap;
+    font-size: 1.5em;
+    z-index: 10;
+}
+.speech-bubble.active {
+    opacity: 1;
+    animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+    0% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.05); }
+    100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Tombol Mode Malam yang Diperbarui */
+.mode-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    cursor: pointer;
+    font-size: 1.5em;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background-color: var(--card-background);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    z-index: 1000;
+}
+.mode-toggle i {
+    color: var(--secondary-color);
+    transition: color 0.5s ease;
+}
+body.dark-mode .mode-toggle i {
+    color: #f1c40f;
+}
+.mode-toggle:hover {
+    transform: scale(1.1);
+}
+
+/* Gaya Gauge */
+.gauge-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    margin-top: 20px;
+    position: relative;
+}
+.gauge-circle {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    font-weight: 700;
+    font-size: 1.8em;
+    color: white;
+    transition: background-color 0.5s ease;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    position: relative;
+    transform: scale(1);
+    animation: none;
+}
+.gauge-circle.safe { background-color: var(--safe-color); }
+.gauge-circle.warning { background-color: var(--warning-color); }
+.gauge-circle.danger { background-color: var(--danger-color); animation: gauge-pulse 1s infinite; }
+.gauge-status {
+    font-size: 1em;
+    font-weight: 400;
+    margin-top: 5px;
+    opacity: 0.8;
+}
+@keyframes gauge-pulse {
+    0% { box-shadow: 0 0 0 0 var(--danger-color); transform: scale(1); }
+    70% { box-shadow: 0 0 0 20px rgba(255, 107, 107, 0); transform: scale(1.05); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); transform: scale(1); }
+}
+
+.info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.info-list li {
+    padding: 15px;
+    margin-bottom: 10px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    border-left: 5px solid var(--primary-color);
+    transition: transform 0.2s ease, background-color 0.5s ease;
+}
+body.dark-mode .info-list li {
+    background-color: var(--background-color);
+    border-left-color: var(--secondary-color);
+}
+.info-list li:hover {
+    transform: translateX(5px);
+}
+.info-list h3 {
+    margin: 0;
+    font-size: 1.2em;
+    color: var(--primary-color);
+}
+.info-list p {
+    margin: 5px 0 0;
+    font-size: 0.9em;
+    color: var(--secondary-color);
+}
+
+/* Gaya Tabel Peringatan */
+.warning-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+.warning-table th, .warning-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--secondary-color);
+    color: var(--text-color);
+}
+.warning-table thead {
+    background-color: var(--card-background);
+    border-radius: 15px 15px 0 0;
+}
+.warning-table th {
+    font-weight: 700;
+    color: var(--primary-color);
+    font-size: 1.1em;
+}
+.warning-table tbody tr:hover {
+    background-color: rgba(255, 0, 0, 0.1);
+}
+body.dark-mode .warning-table tbody tr:hover {
+    background-color: rgba(255, 0, 0, 0.2);
+}
+body.dark-mode .warning-table th, body.dark-mode .warning-table td {
+    border-color: #444;
+}
