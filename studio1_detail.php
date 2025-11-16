@@ -1,4 +1,4 @@
-<?php
+<?php 
 session_start();
 include "koneksi.php";
 
@@ -7,38 +7,58 @@ if (!isset($_SESSION['admin_logged_in'])) {
     exit();
 }
 
-// Tentukan studio_id berdasarkan file yang diakses
+// Ambil nama file → contoh: studio1_detail.php
 $current_file = basename($_SERVER['PHP_SELF']);
-$studio_id = (int) filter_var($current_file, FILTER_SANITIZE_NUMBER_INT);
 
-// Ambil data studio
+// Ambil angka studio_id dari nama file
+preg_match('/studio(\d+)_detail\.php/', $current_file, $match);
+$studio_id = isset($match[1]) ? (int)$match[1] : 0;
+
+// Validasi studio_id
+if ($studio_id < 1) {
+    die("ID Studio tidak valid.");
+}
+
+// AMBIL DATA STUDIO
 $studio_query = mysqli_query($conn, "
-    SELECT l.*, 
-           (SELECT sound_level FROM sensor_log WHERE lamp_id = l.lamp_id ORDER BY created_at DESC LIMIT 1) as sound_level,
-           (SELECT created_at FROM sensor_log WHERE lamp_id = l.lamp_id ORDER BY created_at DESC LIMIT 1) as last_update
-    FROM lampu l 
-    WHERE l.lamp_id = $studio_id
+    SELECT s.studio_id, s.studio_name,
+        (SELECT sound_level FROM sensor_log 
+         WHERE studio_id = s.studio_id
+         ORDER BY created_at DESC LIMIT 1) AS sound_level,
+        (SELECT created_at FROM sensor_log 
+         WHERE studio_id = s.studio_id
+         ORDER BY created_at DESC LIMIT 1) AS last_update
+    FROM studios s
+    WHERE s.studio_id = $studio_id
 ");
+
+
+// Jika tabel kamu bukan 'studio', tapi 'lampu', ganti jadi:
+/// FROM lampu l
+/// WHERE l.studio_id = $studio_id
 
 $studio = mysqli_fetch_assoc($studio_query);
 
-// Tentukan status berdasarkan rentang baru
-$sound_level = $studio['sound_level'] ?? 0;
-$sound_status = 'RENDAH';
-if ($sound_level >= 50 && $sound_level <= 90) {
-    $sound_status = 'SEDANG';
-} elseif ($sound_level > 90) {
-    $sound_status = 'TINGGI';
+if (!$studio) {
+    die("Studio dengan ID $studio_id tidak ditemukan.");
 }
 
-// Ambil data untuk chart (24 jam terakhir)
+// Tentukan status suara
+$sound_level = $studio['sound_level'] ?? 0;
+
+if ($sound_level < 50)       $sound_status = 'RENDAH';
+elseif ($sound_level <= 90)  $sound_status = 'SEDANG';
+else                         $sound_status = 'TINGGI';
+
+// DATA GRAFIK (24 JAM)
 $chart_data = mysqli_query($conn, "
     SELECT sound_level, created_at 
     FROM sensor_log 
-    WHERE lamp_id = $studio_id 
+    WHERE studio_id = $studio_id 
     AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
     ORDER BY created_at ASC
 ");
+
 
 $chart_labels = [];
 $chart_values = [];
@@ -48,41 +68,43 @@ while ($row = mysqli_fetch_assoc($chart_data)) {
     $chart_values[] = $row['sound_level'];
 }
 
-// Ambil statistik hari ini
+// STATISTIK HARI INI
 $today_stats = mysqli_query($conn, "
-    SELECT 
-        AVG(sound_level) as avg_level,
-        MAX(sound_level) as max_level,
-        MIN(sound_level) as min_level,
-        COUNT(*) as total_records
+    SELECT AVG(sound_level) as avg_level,
+           MAX(sound_level) as max_level,
+           MIN(sound_level) as min_level,
+           COUNT(*) as total_records
     FROM sensor_log 
-    WHERE lamp_id = $studio_id 
+    WHERE studio_id = $studio_id 
     AND DATE(created_at) = CURDATE()
 ");
 
+
 $stats = mysqli_fetch_assoc($today_stats);
 
-// Ambil statistik minggu ini
+// STATISTIK 7 HARI
 $week_stats = mysqli_query($conn, "
     SELECT 
         AVG(sound_level) as avg_week,
         MAX(sound_level) as max_week,
         COUNT(*) as total_week
-    FROM sensor_log 
-    WHERE lamp_id = $studio_id 
+    FROM sensor_log
+    WHERE studio_id = $studio_id
     AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
 ");
 
 $week_data = mysqli_fetch_assoc($week_stats);
 
-// Ambil riwayat terbaru
+// RIWAYAT 10 TERBARU
 $history = mysqli_query($conn, "
     SELECT * FROM sensor_log 
-    WHERE lamp_id = $studio_id 
+    WHERE studio_id = $studio_id 
     ORDER BY created_at DESC 
     LIMIT 10
 ");
 ?>
+
+
 
 <!DOCTYPE html>
 <html lang="id" data-theme="dark">
@@ -510,10 +532,11 @@ $history = mysqli_query($conn, "
           <div class="studio-header">
             <div class="studio-info">
               <h2>Studio <?php echo $studio_id; ?></h2>
-              <p>Status: <strong><?php echo $studio['status']; ?></strong></p>
-              <p>Level Suara Terakhir: <strong><?php echo $sound_level; ?> dB</strong></p>
-              <p>Status Suara: <strong><?php echo $sound_status; ?></strong></p>
-              <p>Update Terakhir: <?php echo $studio['last_update'] ?? 'Belum ada data'; ?></p>
+              <p>Status: <strong id="info-status-text"><?php echo $sound_status; ?></strong></p>
+              <p>Level Suara Terakhir: <strong id="info-level"><?php echo $sound_level; ?> dB</strong></p>
+              <p>Status Suara: <strong id="info-status" class="status-badge status-<?php echo strtolower($sound_status); ?>"><?php echo $sound_status; ?></strong></p>
+              <p>Update Terakhir: <span id="info-updated"><?php echo $studio['last_update'] ?? 'Belum ada data'; ?></span></p>
+
             </div>
             <div style="font-size: 4em;">🎸</div>
           </div>
@@ -607,7 +630,7 @@ $history = mysqli_query($conn, "
             <button class="btn btn-success" onclick="resetData()">
               <i class="fas fa-sync"></i> Reset Data Harian
             </button>
-            <button class="btn btn-warning" onclick="exportData()">
+            <button class="btn btn-warning" onclick="exportCSV()">
               <i class="fas fa-download"></i> Export Data
             </button>
             <button class="btn btn-outline" onclick="showNotifications()">
@@ -658,6 +681,8 @@ $history = mysqli_query($conn, "
   </div>
 
   <script>
+    let latestStudioData = null;
+
     // Theme Toggle
     const themeToggle = document.getElementById('themeToggle');
     const themeIcon = themeToggle.querySelector('i');
@@ -764,20 +789,73 @@ $history = mysqli_query($conn, "
       }
     }
 
-    function exportData() {
-      alert('Fitur export data akan segera tersedia!');
-      // Di sini bisa ditambahkan fungsi export ke CSV/Excel
-    }
+    function exportCSV() {
+    window.location.href = "export_csv.php?studio_id=<?php echo $studio_id; ?>";
+  }
+
 
     function showNotifications() {
       alert('Pengaturan notifikasi akan segera tersedia!');
       // Di sini bisa ditambahkan modal untuk pengaturan notifikasi
     }
 
-    // Auto refresh setiap 1 menit
-    setTimeout(() => {
-      location.reload();
-    }, 60000);
+    // === REALTIME CHART UPDATE === //
+  function updateChartRealtime() {
+      fetch("get_chart.php?studio_id=<?php echo $studio_id; ?>")
+          .then(response => response.json())
+          .then(data => {
+              soundChart.data.labels = data.labels;
+              soundChart.data.datasets[0].data = data.values;
+              soundChart.update();
+          });
+  }
+
+  setInterval(updateChartRealtime, 5000);
+
+  function fetchStudioData() {
+    fetch("get_studio_status.php")
+        .then(r => r.json())
+        .then(data => {
+            latestStudioData = data;
+            updateStudioInfo(data);
+            checkNoiseAlert(data);
+        })
+        .catch(err => console.error("Fetch error:", err));
+  }
+
+
+  function updateStudioInfo(allData) {
+    let s = allData.find(x => x.studio_id == <?php echo $studio_id; ?>);
+    if (!s) return;
+
+    let level = parseInt(s.sound_level ?? 0);
+    let statusText = s.sound_status;
+
+    document.getElementById("info-level").innerText = level + " dB";
+    document.getElementById("info-status-text").innerText = statusText;
+
+    let badge = document.getElementById("info-status");
+    badge.innerText = statusText;
+    badge.className = "status-badge status-" + statusText.toLowerCase();
+
+    document.getElementById("info-updated").innerText = s.last_update ?? "-";
+  }
+
+  let lastNotified = 0;
+
+  function checkNoiseAlert(allData) {
+    let s = allData.find(x => x.studio_id == <?php echo $studio_id; ?>);
+    if (!s) return;
+
+    let level = parseInt(s.sound_level ?? 0);
+
+    if (level > 90 && Date.now() - lastNotified > 5000) {
+        lastNotified = Date.now();
+        alert("⚠️ PERINGATAN!! Studio <?php echo $studio_id; ?> melebihi 90 dB!");
+    }
+  }
+
+  setInterval(fetchStudioData, 2000);
   </script>
 </body>
 </html>

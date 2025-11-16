@@ -7,35 +7,53 @@ if (!isset($_SESSION['admin_logged_in'])) {
     exit();
 }
 
-// Ambil data lampu dan status terbaru
+// Ambil data studio
 $studios = mysqli_query($conn, "
-    SELECT l.lamp_id, l.status, l.lamp_name,
-           (SELECT sound_status FROM sensor_log WHERE lamp_id = l.lamp_id ORDER BY created_at DESC LIMIT 1) as sound_status,
-           (SELECT sound_level FROM sensor_log WHERE lamp_id = l.lamp_id ORDER BY created_at DESC LIMIT 1) as sound_level,
-           (SELECT created_at FROM sensor_log WHERE lamp_id = l.lamp_id ORDER BY created_at DESC LIMIT 1) as last_update
-    FROM lampu l 
-    ORDER BY l.lamp_id ASC
+    SELECT s.studio_id, s.studio_name,
+        (SELECT sound_level FROM sensor_log 
+         WHERE studio_id = s.studio_id 
+         ORDER BY created_at DESC LIMIT 1) AS sound_level,
+        (SELECT sound_status FROM sensor_log 
+         WHERE studio_id = s.studio_id 
+         ORDER BY created_at DESC LIMIT 1) AS sound_status,
+        (SELECT created_at FROM sensor_log 
+         WHERE studio_id = s.studio_id 
+         ORDER BY created_at DESC LIMIT 1) AS last_update
+    FROM studios s
+    ORDER BY s.studio_id ASC
 ");
 
 if (!$studios) {
-    die("Error query lampu: " . mysqli_error($conn));
+    die("Error query studios: " . mysqli_error($conn));
 }
 
-// Hitung statistik
-$total_studios = mysqli_num_rows($studios);
+$studio_data = [];
+$total_studios = 0;
 $active_studios = 0;
 $noisy_studios = 0;
 
-$studio_data = [];
 while ($s = mysqli_fetch_assoc($studios)) {
-    $studio_data[] = $s;
-    if ($s['status'] == 'ON') $active_studios++;
-    
-    // Tentukan status berdasarkan rentang baru
+
+    $total_studios++;
+
+    // Cek apakah aktif (update < 10 detik)
+    $is_active = false;
+    if ($s['last_update']) {
+        if (time() - strtotime($s['last_update']) <= 10) {
+            $is_active = true;
+            $active_studios++;
+        }
+    }
+
+    // Hitung berisik
     $sound_level = $s['sound_level'] ?? 0;
     if ($sound_level > 90) {
         $noisy_studios++;
     }
+
+    $s['is_active'] = $is_active;
+
+    $studio_data[] = $s;
 }
 ?>
 <!DOCTYPE html>
@@ -126,7 +144,7 @@ while ($s = mysqli_fetch_assoc($studios)) {
     /* Theme Toggle - POSISI DI POJOK BAWAH */
     .theme-toggle {
       position: fixed;
-      bottom: 25px;
+      bottom: 25px; 
       right: 25px;
       z-index: 1000;
     }
@@ -671,7 +689,7 @@ while ($s = mysqli_fetch_assoc($studios)) {
           <?php 
           $i = 1;
           foreach ($studio_data as $studio):
-            $lamp_id = $studio['lamp_id'];
+            $studio_id   = $studio['studio_id'];
             $sound_level = $studio['sound_level'] ?? 0;
             $last_update = $studio['last_update'] ?? 'Belum ada data';
             
@@ -683,34 +701,34 @@ while ($s = mysqli_fetch_assoc($studios)) {
                 $sound_status = 'TINGGI';
             }
             
-            // Tentukan status keseluruhan
-            if ($studio['status'] == 'OFF') {
-                $status_class = 'off';
-                $status_text = 'Tidak Aktif';
-                $badge_class = 'badge-offline';
-                $pulse_class = 'pulse-off';
-            } elseif ($sound_status == 'TINGGI') {
-                $status_class = 'noisy';
-                $status_text = 'Berisik';
-                $badge_class = 'badge-noisy';
-                $pulse_class = 'pulse-noisy';
-            } else {
-                $status_class = 'active';
-                $status_text = 'Aktif';
-                $badge_class = 'badge-active';
-                $pulse_class = 'pulse-on';
+            // Tentukan status badge
+            if (!$studio['is_active']) {
+                $badge_class = "badge-offline";
+                $status_text = "Offline";
+                $pulse_class = "pulse-off";
+            }
+            else if ($sound_level > 90) {
+                $badge_class = "badge-noisy";
+                $status_text = "Berisik";
+                $pulse_class = "pulse-noisy";
+            }
+            else {
+                $badge_class = "badge-active";
+                $status_text = "Aktif";
+                $pulse_class = "pulse-on";
             }
 
-            // Tentukan file detail berdasarkan lamp_id
-            $detail_file = "studio{$lamp_id}_detail.php";
+
+            // Tentukan file detail berdasarkan studio_id
+            $detail_file = "studio{$studio['studio_id']}_detail.php";
           ?>
-            <div class="studio-card">
+            <div class="studio-card" id="studio-card-<?php echo $studio_id; ?>">
               <div class="studio-header">
                 <div>
                   <div class="studio-icon">🎸</div>
                   <h3>Studio <?php echo $i; ?></h3>
                 </div>
-                <span class="studio-badge <?php echo $badge_class; ?>">
+                <span class="studio-badge <?php echo $badge_class; ?>" id="badge-<?php echo $studio_id; ?>">
                   <?php echo $status_text; ?>
                 </span>
               </div>
@@ -718,16 +736,16 @@ while ($s = mysqli_fetch_assoc($studios)) {
               <div class="studio-stats">
                 <div class="stat">
                   <div class="label">Level Suara</div>
-                  <div class="value"><?php echo $sound_level; ?> dB</div>
+                  <div class="value" id="level-<?php echo $studio_id; ?>"><?php echo $sound_level; ?> dB</div>
                 </div>
                 <div class="stat">
                   <div class="label">Status</div>
-                  <div class="value"><?php echo $sound_status; ?></div>
+                  <div class="value" id="status-<?php echo $studio_id; ?>"><?php echo $sound_status; ?></div>
                 </div>
               </div>
               
               <div class="status-indicator">
-                <span class="pulse <?php echo $pulse_class; ?>"></span>
+                <span class="pulse <?php echo $pulse_class; ?>" id="pulse-<?php echo $studio_id; ?>"></span>
                 <span><?php echo $status_text; ?></span>
               </div>
               
@@ -735,7 +753,7 @@ while ($s = mysqli_fetch_assoc($studios)) {
                 <a href="<?php echo $detail_file; ?>" class="btn btn-primary">
                   <i class="fas fa-chart-line"></i> Detail
                 </a>
-                <button class="btn btn-outline" onclick="showStudioInfo(<?php echo $lamp_id; ?>)">
+                <button class="btn btn-outline" onclick="showStudioInfo(<?php echo $studio_id; ?>)">
                   <i class="fas fa-info-circle"></i> Info
                 </button>
               </div>
@@ -757,12 +775,13 @@ while ($s = mysqli_fetch_assoc($studios)) {
           <?php
           // Ambil aktivitas terbaru
           $recent_activity = mysqli_query($conn, "
-            SELECT sl.*, l.lamp_name 
-            FROM sensor_log sl 
-            JOIN lampu l ON sl.lamp_id = l.lamp_id 
-            ORDER BY sl.created_at DESC 
-            LIMIT 5
+              SELECT sl.*, s.studio_name
+              FROM sensor_log sl
+              JOIN studios s ON sl.studio_id = s.studio_id
+              ORDER BY sl.created_at DESC
+              LIMIT 5
           ");
+
           
           while ($activity = mysqli_fetch_assoc($recent_activity)):
             // Tentukan status berdasarkan rentang baru
@@ -790,7 +809,7 @@ while ($s = mysqli_fetch_assoc($studios)) {
                 <i class="<?php echo $activity_icon; ?>"></i>
               </div>
               <div class="activity-content">
-                <h4>Studio <?php echo $activity['lamp_id']; ?></h4>
+                <h4><?php echo $activity['studio_name']; ?></h4>
                 <p>Level suara: <?php echo $activity['sound_level']; ?> dB (<?php echo $activity_status; ?>)</p>
                 <div class="activity-time">
                   <?php echo date('H:i', strtotime($activity['created_at'])); ?>
@@ -835,10 +854,6 @@ while ($s = mysqli_fetch_assoc($studios)) {
       alert('Informasi Studio ' + studioId + '\n\nFitur ini akan menampilkan detail informasi studio.');
     }
 
-    // Auto refresh setiap 30 detik
-    setTimeout(() => {
-      location.reload();
-    }, 30000);
 
     // Animasi untuk cards
     document.addEventListener('DOMContentLoaded', function() {
@@ -847,6 +862,71 @@ while ($s = mysqli_fetch_assoc($studios)) {
         card.style.animationDelay = `${index * 0.1}s`;
       });
     });
+
+    setInterval(fetchRealtimeUpdate, 2000);
+
+    function fetchRealtimeUpdate() {
+        fetch("get_studio_status.php")
+            .then(r => r.json())
+            .then(data => updateDashboard(data))
+            .catch(err => console.error("Realtime error:", err));
+    }
+
+    function updateDashboard(data) {
+      data.forEach(s => {
+
+          let level = parseInt(s.sound_level);
+          let lastUpdate = s.last_update;
+
+          // --- Tentukan apakah studio aktif (sama seperti PHP) ---
+          let isActive = false;
+          if (lastUpdate !== "-" && lastUpdate !== null) {
+              let diff = (Date.now() - new Date(lastUpdate)) / 1000;
+              if (diff <= 10) isActive = true;
+          }
+
+          // --- Tentukan status level menurut rentang ---
+          let statusLevel = "RENDAH";
+          if (level >= 50 && level <= 90) statusLevel = "SEDANG";
+          if (level > 90) statusLevel = "TINGGI";
+
+          // --- Update angka dB ---
+          document.getElementById("level-" + s.studio_id).innerText = level + " dB";
+
+          // --- Update teks status (RENDAH / SEDANG / TINGGI) ---
+          document.getElementById("status-" + s.studio_id).innerText = statusLevel;
+
+          // --- Badge (Offline / Berisik / Aktif) ---
+          let badge = document.getElementById("badge-" + s.studio_id);
+
+          if (!isActive) {
+              badge.className = "studio-badge badge-offline";
+              badge.innerText = "Offline";
+          } 
+          else if (level > 90) {
+              badge.className = "studio-badge badge-noisy";
+              badge.innerText = "Berisik";
+          } 
+          else {
+              badge.className = "studio-badge badge-active";
+              badge.innerText = "Aktif";
+          }
+
+          // --- Pulse indicator ---
+          let pulse = document.getElementById("pulse-" + s.studio_id);
+
+          if (!isActive) {
+              pulse.className = "pulse pulse-off";
+          }
+          else if (level > 90) {
+              pulse.className = "pulse pulse-noisy";
+          }
+          else {
+              pulse.className = "pulse pulse-on";
+          }
+      });
+    }
+
   </script>
 </body>
 </html>
