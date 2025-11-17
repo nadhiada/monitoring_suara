@@ -1,4 +1,5 @@
 <?php
+date_default_timezone_set('Asia/Jakarta');
 include "koneksi.php";
 
 if (isset($_GET['studio_id']) && isset($_GET['level']) &&

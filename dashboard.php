@@ -1,4 +1,5 @@
 <?php  
+date_default_timezone_set('Asia/Jakarta');
 session_start();
 include "koneksi.php";
 
@@ -865,38 +866,31 @@ while ($s = mysqli_fetch_assoc($studios)) {
 
     setInterval(fetchRealtimeUpdate, 2000);
 
-    function fetchRealtimeUpdate() {
-        fetch("get_studio_status.php")
-            .then(r => r.json())
-            .then(data => updateDashboard(data))
-            .catch(err => console.error("Realtime error:", err));
-    }
+  function fetchRealtimeUpdate() {
+      fetch("get_studio_status.php")
+          .then(r => r.json())
+          .then(data => updateDashboard(data))
+          .catch(err => console.error("Realtime error:", err));
+  }
 
-    function updateDashboard(data) {
+  function updateDashboard(data) {
       data.forEach(s => {
 
           let level = parseInt(s.sound_level);
-          let lastUpdate = s.last_update;
+          let isActive = !s.offline;
 
-          // --- Tentukan apakah studio aktif (sama seperti PHP) ---
-          let isActive = false;
-          if (lastUpdate !== "-" && lastUpdate !== null) {
-              let diff = (Date.now() - new Date(lastUpdate)) / 1000;
-              if (diff <= 10) isActive = true;
-          }
-
-          // --- Tentukan status level menurut rentang ---
+          // Tentukan status level
           let statusLevel = "RENDAH";
           if (level >= 50 && level <= 90) statusLevel = "SEDANG";
           if (level > 90) statusLevel = "TINGGI";
 
-          // --- Update angka dB ---
+          // Update Level Suara
           document.getElementById("level-" + s.studio_id).innerText = level + " dB";
 
-          // --- Update teks status (RENDAH / SEDANG / TINGGI) ---
+          // Update Status Text
           document.getElementById("status-" + s.studio_id).innerText = statusLevel;
 
-          // --- Badge (Offline / Berisik / Aktif) ---
+          // Update Badge
           let badge = document.getElementById("badge-" + s.studio_id);
 
           if (!isActive) {
@@ -912,7 +906,7 @@ while ($s = mysqli_fetch_assoc($studios)) {
               badge.innerText = "Aktif";
           }
 
-          // --- Pulse indicator ---
+          // Update Pulse
           let pulse = document.getElementById("pulse-" + s.studio_id);
 
           if (!isActive) {
@@ -924,8 +918,10 @@ while ($s = mysqli_fetch_assoc($studios)) {
           else {
               pulse.className = "pulse pulse-on";
           }
+
       });
-    }
+  }
+
 
   </script>
 </body>

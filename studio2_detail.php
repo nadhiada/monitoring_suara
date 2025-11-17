@@ -532,9 +532,9 @@ $history = mysqli_query($conn, "
           <div class="studio-header">
             <div class="studio-info">
               <h2>Studio <?php echo $studio_id; ?></h2>
-              <p>Status: <strong id="info-status-text"><?php echo $sound_status; ?></strong></p>
+              <p>Status: <strong id="info-status-text">-</strong></p>
               <p>Level Suara Terakhir: <strong id="info-level"><?php echo $sound_level; ?> dB</strong></p>
-              <p>Status Suara: <strong id="info-status" class="status-badge status-<?php echo strtolower($sound_status); ?>"><?php echo $sound_status; ?></strong></p>
+              <p>Status Suara: <strong id="info-status" class="status-badge status-rendah">-</strong></p>
               <p>Update Terakhir: <span id="info-updated"><?php echo $studio['last_update'] ?? 'Belum ada data'; ?></span></p>
 
             </div>
@@ -829,23 +829,56 @@ $history = mysqli_query($conn, "
     if (!s) return;
 
     let level = parseInt(s.sound_level ?? 0);
-    let statusText = s.sound_status;
+    let isActive = !s.offline;
 
+    // Tentukan status suara
+    let statusText = "RENDAH";
+    if (level >= 50 && level <= 90) statusText = "SEDANG";
+    if (level > 90) statusText = "TINGGI";
+
+    // Jika offline → status prioritas offline
+    if (!isActive) {
+        statusText = "OFFLINE";
+    }
+
+    // Update level
     document.getElementById("info-level").innerText = level + " dB";
+
+    // Update text status
     document.getElementById("info-status-text").innerText = statusText;
 
+    // Update badge
     let badge = document.getElementById("info-status");
-    badge.innerText = statusText;
-    badge.className = "status-badge status-" + statusText.toLowerCase();
 
+    if (!isActive) {
+        badge.className = "status-badge status-rendah";
+        badge.style.background = "#6b7280"; // abu abu
+        badge.innerText = "OFFLINE";
+    } else {
+        badge.style.background = ""; // hapus abu-abu offline
+
+        if (statusText === "RENDAH")  
+            badge.className = "status-badge status-rendah";
+
+        if (statusText === "SEDANG")  
+            badge.className = "status-badge status-sedang";
+
+        if (statusText === "TINGGI")  
+            badge.className = "status-badge status-tinggi";
+
+        badge.innerText = statusText;
+    }
+
+    // Update last update
     document.getElementById("info-updated").innerText = s.last_update ?? "-";
   }
+
 
   let lastNotified = 0;
 
   function checkNoiseAlert(allData) {
     let s = allData.find(x => x.studio_id == <?php echo $studio_id; ?>);
-    if (!s) return;
+    if (!s || s.offline) return;
 
     let level = parseInt(s.sound_level ?? 0);
 
