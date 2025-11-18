@@ -754,9 +754,6 @@ while ($s = mysqli_fetch_assoc($studios)) {
                 <a href="<?php echo $detail_file; ?>" class="btn btn-primary">
                   <i class="fas fa-chart-line"></i> Detail
                 </a>
-                <button class="btn btn-outline" onclick="showStudioInfo(<?php echo $studio_id; ?>)">
-                  <i class="fas fa-info-circle"></i> Info
-                </button>
               </div>
             </div>
           <?php 

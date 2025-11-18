@@ -633,9 +633,6 @@ $history = mysqli_query($conn, "
             <button class="btn btn-warning" onclick="exportCSV()">
               <i class="fas fa-download"></i> Export Data
             </button>
-            <button class="btn btn-outline" onclick="showNotifications()">
-              <i class="fas fa-bell"></i> Atur Notifikasi
-            </button>
           </div>
         </div>
 
